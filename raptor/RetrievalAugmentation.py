@@ -156,13 +156,15 @@ class RetrievalAugmentation:
     Enables adding documents to the tree, retrieving information, and answering questions.
     """
 
-    def __init__(self, config=RetrievalAugmentationConfig(), tree=None):
+    def __init__(self, config=None, tree=None):
         """
         Initializes a RetrievalAugmentation instance with the specified configuration.
         Args:
             config (RetrievalAugmentationConfig): The configuration for the RetrievalAugmentation instance.
             tree: The tree instance or the path to a pickled tree file.
         """
+        if config is None:
+            config = RetrievalAugmentationConfig()
         if not isinstance(config, RetrievalAugmentationConfig):
             raise ValueError(
                 "config must be an instance of RetrievalAugmentationConfig"
@@ -222,8 +224,9 @@ class RetrievalAugmentation:
         question,
         start_layer: int = None,
         num_layers: int = None,
+        top_k: int = 10,
         max_tokens: int = 3500,
-        collapse_tree: bool = False,
+        collapse_tree: bool = True,
         return_layer_information: bool = True,
     ):
         """
@@ -251,6 +254,7 @@ class RetrievalAugmentation:
             question,
             start_layer,
             num_layers,
+            top_k,
             max_tokens,
             collapse_tree,
             return_layer_information,
@@ -259,10 +263,11 @@ class RetrievalAugmentation:
     def answer_question(
         self,
         question,
+        top_k: int = 10,
         start_layer: int = None,
         num_layers: int = None,
         max_tokens: int = 3500,
-        collapse_tree: bool = False,
+        collapse_tree: bool = True,
         return_layer_information: bool = False,
     ):
         """
@@ -283,7 +288,7 @@ class RetrievalAugmentation:
         """
         # if return_layer_information:
         context, layer_information = self.retrieve(
-            question, start_layer, num_layers, max_tokens, collapse_tree, True
+            question, start_layer, num_layers, top_k, max_tokens, collapse_tree, True
         )
 
         answer = self.qa_model.answer_question(context, question)
