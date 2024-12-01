@@ -368,8 +368,8 @@
     "deletedPanelChatIDs": []
   },
   "kv_store": {
-    "unique_matched_lines_count": 167,
-    "total_repo_line_count": 4840,
+    "unique_matched_lines_count": 280,
+    "total_repo_line_count": 6877,
     "best_prompt_response": {
       "prompt": "@raptor \ncách set layer, set chunk size?",
       "response": "Tôi sẽ giải thích cách cấu hình layer và chunk size trong RAPTOR:\n\n### 1. Cấu hình Layer\n\nBạn có thể cấu hình số layer thông qua các tham số sau:\n\n1. Trong `TreeBuilderConfig`:\n\n```24:52:raptor/tree_builder.py\nclass TreeBuilderConfig:\r\n    def __init__(\r\n        self,\r\n        tokenizer=None,\r\n        max_tokens=None,\r\n        num_layers=None,\r\n        threshold=None,\r\n        top_k=None,\r\n        selection_mode=None,\r\n        summarization_length=None,\r\n        summarization_model=None,\r\n        embedding_models=None,\r\n        cluster_embedding_model=None,\r\n    ):\r\n        if tokenizer is None:\r\n            tokenizer = tiktoken.get_encoding(\"cl100k_base\")\r\n        self.tokenizer = tokenizer\r\n\r\n        if max_tokens is None:\r\n            max_tokens = 100\r\n        if not isinstance(max_tokens, int) or max_tokens < 1:\r\n            raise ValueError(\"max_tokens must be an integer and at least 1\")\r\n        self.max_tokens = max_tokens\r\n\r\n        if num_layers is None:\r\n            num_layers = 5\r\n        if not isinstance(num_layers, int) or num_layers < 1:\r\n            raise ValueError(\"num_layers must be an integer and at least 1\")\r\n        self.num_layers = num_layers\r\n```\n\n\n- Sử dụng tham số `num_layers` khi khởi tạo config (mặc định là 5)\n\n2. Trong `TreeRetrieverConfig`:\n\n```19:80:raptor/tree_retriever.py\nclass TreeRetrieverConfig:\r\n    def __init__(\r\n        self,\r\n        tokenizer=None,\r\n        threshold=None,\r\n        top_k=None,\r\n        selection_mode=None,\r\n        context_embedding_model=None,\r\n        embedding_model=None,\r\n        num_layers=None,\r\n        start_layer=None,\r\n    ):\r\n        if tokenizer is None:\r\n            tokenizer = tiktoken.get_encoding(\"cl100k_base\")\r\n        self.tokenizer = tokenizer\r\n\r\n        if threshold is None:\r\n            threshold = 0.5\r\n        if not isinstance(threshold, float) or not (0 <= threshold <= 1):\r\n            raise ValueError(\"threshold must be a float between 0 and 1\")\r\n        self.threshold = threshold\r\n\r\n        if top_k is None:\r\n            top_k = 5\r\n        if not isinstance(top_k, int) or top_k < 1:\r\n            raise ValueError(\"top_k must be an integer and at least 1\")\r\n        self.top_k = top_k\r\n\r\n        if selection_mode is None:\r\n            selection_mode = \"top_k\"\r\n        if not isinstance(selection_mode, str) or selection_mode not in [\r\n            \"top_k\",\r\n            \"threshold\",\r\n        ]:\r\n            raise ValueError(\r\n                \"selection_mode must be a string and either 'top_k' or 'threshold'\"\r\n            )\r\n        self.selection_mode = selection_mode\r\n\r\n        if context_embedding_model is None:\r\n            context_embedding_model = \"OpenAI\"\n        if not isinstance(context_embedding_model, str):\r\n            raise ValueError(\"context_embedding_model must be a string\")\r\n        self.context_embedding_model = context_embedding_model\r\n\r\n        if embedding_model is None:\r\n            embedding_model = OpenAIEmbeddingModel()\r\n        if not isinstance(embedding_model, BaseEmbeddingModel):\r\n            raise ValueError(\r\n                \"embedding_model must be an instance of BaseEmbeddingModel\"\r\n            )\r\n        self.embedding_model = embedding_model\r\n\r\n        if num_layers is not None:\r\n            if not isinstance(num_layers, int) or num_layers < 0:\r\n                raise ValueError(\"num_layers must be an integer and at least 0\")\r\n        self.num_layers = num_layers\r\n\r\n        if start_layer is not None:\r\n            if not isinstance(start_layer, int) or start_layer < 0:\r\n                raise ValueError(\"start_layer must be an integer and at least 0\")\r\n        self.start_layer = start_layer\n```\n\n\n- `num_layers`: Số layer muốn duyệt qua\n- `start_layer`: Layer bắt đầu tìm kiếm\n\nVí dụ cách sử dụng:\n\n```python\nconfig = TreeBuilderConfig(\n    num_layers=3  # Set số layer trong cây là 3\n)\n\nretriever_config = TreeRetrieverConfig(\n    start_layer=2,  # Bắt đầu tìm từ layer 2\n    num_layers=1    # Duyệt qua 1 layer\n)\n```\n\n### 2. Cấu hình Chunk Size\n\nCó 2 cách để cấu hình kích thước chunk:\n\n1. Thông qua `TreeBuilderConfig`:\n\n```38:46:raptor/tree_builder.py\n        if tokenizer is None:\r\n            tokenizer = tiktoken.get_encoding(\"cl100k_base\")\r\n        self.tokenizer = tokenizer\r\n\r\n        if max_tokens is None:\r\n            max_tokens = 100\r\n        if not isinstance(max_tokens, int) or max_tokens < 1:\r\n            raise ValueError(\"max_tokens must be an integer and at least 1\")\r\n        self.max_tokens = max_tokens\r\n```\n\n\n- Sử dụng tham số `max_tokens` (mặc định là 100 tokens)\n\n2. Thông qua `FaissRetrieverConfig`:\n\n```14:56:raptor/FaissRetriever.py\nclass FaissRetrieverConfig:\r\n    def __init__(\r\n        self,\r\n        max_tokens=100,\r\n        max_context_tokens=3500,\r\n        use_top_k=False,\r\n        embedding_model=None,\r\n        question_embedding_model=None,\r\n        top_k=5,\r\n        tokenizer=tiktoken.get_encoding(\"cl100k_base\"),\r\n        embedding_model_string=None,\r\n    ):\r\n        if max_tokens < 1:\r\n            raise ValueError(\"max_tokens must be at least 1\")\r\n\r\n        if top_k < 1:\r\n            raise ValueError(\"top_k must be at least 1\")\r\n\r\n        if max_context_tokens is not None and max_context_tokens < 1:\r\n            raise ValueError(\"max_context_tokens must be at least 1 or None\")\r\n\r\n        if embedding_model is not None and not isinstance(\r\n            embedding_model, BaseEmbeddingModel\r\n        ):\r\n            raise ValueError(\r\n                \"embedding_model must be an instance of BaseEmbeddingModel or None\"\r\n            )\r\n\r\n        if question_embedding_model is not None and not isinstance(\r\n            question_embedding_model, BaseEmbeddingModel\r\n        ):\r\n            raise ValueError(\r\n                \"question_embedding_model must be an instance of BaseEmbeddingModel or None\"\r\n            )\r\n\r\n        self.top_k = top_k\r\n        self.max_tokens = max_tokens\r\n        self.max_context_tokens = max_context_tokens\r\n        self.use_top_k = use_top_k\r\n        self.embedding_model = embedding_model or OpenAIEmbeddingModel()\r\n        self.question_embedding_model = question_embedding_model or self.embedding_model\r\n        self.tokenizer = tokenizer\r\n        self.embedding_model_string = embedding_model_string or \"OpenAI\"\n```\n\n\n- `max_tokens`: Kích thước tối đa của mỗi chunk\n- `max_context_tokens`: Tổng số tokens tối đa cho context\n\nVí dụ:\n\n```python\ntree_config = TreeBuilderConfig(\n    max_tokens=200  # Mỗi chunk có tối đa 200 tokens\n)\n\nfaiss_config = FaissRetrieverConfig(\n    max_tokens=150,           # Mỗi chunk có tối đa 150 tokens  \n    max_context_tokens=3000   # Tổng context tối đa 3000 tokens\n)\n```\n\nLưu ý:\n- Chunk size nhỏ hơn sẽ cho phép tìm kiếm chính xác hơn nhưng tốn nhiều tài nguyên hơn\n- Số layer nhiều sẽ tạo ra cây sâu hơn, phù hợp với tài liệu dài\n- Nên cân nhắc giữa performance và độ chính xác khi cấu hình các tham số này",
@@ -378,20 +378,8 @@
     },
     "file_statistics": [
       {
-        "file": ".DS_Store",
-        "total_lines": 1,
-        "ai_generated_lines": 0,
-        "ai_generated_percentage": 0
-      },
-      {
         "file": "LICENSE.txt",
         "total_lines": 22,
-        "ai_generated_lines": 0,
-        "ai_generated_percentage": 0
-      },
-      {
-        "file": "Note2.ipynb",
-        "total_lines": 920,
         "ai_generated_lines": 0,
         "ai_generated_percentage": 0
       },
@@ -408,10 +396,28 @@
         "ai_generated_percentage": 7.142857142857142
       },
       {
+        "file": "code_reportRA.py",
+        "total_lines": 99,
+        "ai_generated_lines": 78,
+        "ai_generated_percentage": 78.78787878787878
+      },
+      {
+        "file": "code_testReadme_4omini_v1.py",
+        "total_lines": 62,
+        "ai_generated_lines": 9,
+        "ai_generated_percentage": 14.516129032258066
+      },
+      {
         "file": "code_testReadme_4omini_v2.py",
         "total_lines": 107,
         "ai_generated_lines": 4,
         "ai_generated_percentage": 3.7383177570093453
+      },
+      {
+        "file": "code_testReadme_4omini_v3.py",
+        "total_lines": 79,
+        "ai_generated_lines": 26,
+        "ai_generated_percentage": 32.91139240506329
       },
       {
         "file": "demo.ipynb",
@@ -432,14 +438,44 @@
         "ai_generated_percentage": 0
       },
       {
-        "file": "raptor-100token_Kaggle.ipynb",
-        "total_lines": 2,
+        "file": "demo_Cuong.ipynb",
+        "total_lines": 1145,
         "ai_generated_lines": 0,
         "ai_generated_percentage": 0
       },
       {
-        "file": "raptor/.DS_Store",
-        "total_lines": 3,
+        "file": "note/Note2_testMini4omini.ipynb",
+        "total_lines": 920,
+        "ai_generated_lines": 0,
+        "ai_generated_percentage": 0
+      },
+      {
+        "file": "note/Note3_testMini4omini.ipynb",
+        "total_lines": 95,
+        "ai_generated_lines": 0,
+        "ai_generated_percentage": 0
+      },
+      {
+        "file": "note/note/note_RandomState.ipynb",
+        "total_lines": 132,
+        "ai_generated_lines": 0,
+        "ai_generated_percentage": 0
+      },
+      {
+        "file": "note/note/note_patterns_RE.ipynb",
+        "total_lines": 428,
+        "ai_generated_lines": 0,
+        "ai_generated_percentage": 0
+      },
+      {
+        "file": "note/raptor-rag.ipynb",
+        "total_lines": 1,
+        "ai_generated_lines": 0,
+        "ai_generated_percentage": 0
+      },
+      {
+        "file": "raptor-100token_Kaggle.ipynb",
+        "total_lines": 2,
         "ai_generated_lines": 0,
         "ai_generated_percentage": 0
       },
