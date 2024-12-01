@@ -31,3 +31,9 @@ finetuning_ckpts/
 assertion.log
 *.log
 *.db
+
+
+
+.venv
+.env
+.gait/custom-merge-driver.sh
